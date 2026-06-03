@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCA | Teacher Evaluation System</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome (Icons) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        cca: {
+                            navy: '#0f172a',    // Deep Navy
+                            gold: '#eab308',    // Gold
+                            light: '#f8fafc',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; scroll-behavior: smooth; }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); }
+        
+        /* Custom Radio Buttons for Ratings */
+        .rating-group { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .rating-group label {
+            cursor: pointer;
+            width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 50%;
+            background-color: #f1f5f9;
+            color: #475569;
+            font-weight: 600;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        .rating-group input[type="radio"] { display: none; }
+        .rating-group input[type="radio"]:checked + label {
+            background-color: #eab308;
+            color: #0f172a;
+            border-color: #ca8a04;
+            transform: scale(1.1);
+        }
+        .rating-group label:hover { background-color: #fde047; }
+
+        /* Custom Checkboxes */
+        .complaint-checkbox { display: none; }
+        .complaint-label {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: #f1f5f9;
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+        }
+        .complaint-checkbox:checked + .complaint-label {
+            background-color: #ef4444; /* Red for complaints */
+            color: white;
+        }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        
+        /* Toast */
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+        .toast { padding: 12px 20px; border-radius: 8px; color: white; font-weight: 500; opacity: 0; transform: translateX(100%); transition: all 0.3s ease; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .toast.show { opacity: 1; transform: translateX(0); }
+        .toast-success { background-color: #10b981; }
+        .toast-error { background-color: #ef4444; }
+
+        /* Loader */
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #eab308; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; display: inline-block; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="text-slate-800 flex flex-col min-h-screen">
+
+    <!-- Navigation -->
+    <nav class="bg-cca-navy text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center gap-3">
+                    <div class="bg-cca-gold text-cca-navy font-bold rounded-full w-10 h-10 flex items-center justify-center text-lg">CCA</div>
+                    <div>
+                        <h1 class="font-bold text-lg leading-tight">Capital Coaching Academy</h1>
+                        <p class="text-xs text-slate-300">MDCAT Evaluation Portal</p>
+                    </div>
+                </div>
+                <div>
+                    <button onclick="toggleView()" id="nav-btn" class="text-sm font-medium hover:text-cca-gold transition-colors flex items-center gap-2">
+                        <i class="fas fa-lock"></i> Admin Login
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-grow flex flex-col items-center p-4 sm:p-8">
+        
+        <!-- ========================================== -->
+        <!-- VIEW: STUDENT EVALUATION FORM              -->
+        <!-- ========================================== -->
+        <div id="student-view" class="w-full max-w-4xl w-full animate-fade-in">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-cca-navy mb-2">Teacher Evaluation Form</h2>
+                <p class="text-slate-600">Your feedback is anonymous and helps us improve our teaching standards.</p>
+            </div>
+
+            <form id="evaluation-form" class="glass-card rounded-2xl shadow-xl overflow-hidden">
+                <!-- Section 1: Student Info -->
+                <div class="p-6 md:p-8 border-b border-slate-100">
+                    <h3 class="text-xl font-semibold mb-4 text-cca-navy flex items-center gap-2">
+                        <i class="fas fa-user-graduate text-cca-gold"></i> Student Information (Optional)
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Name</label>
+                            <input type="text" id="studentName" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cca-gold focus:border-cca-gold outline-none" placeholder="Enter your name">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">MDCAT Batch</label>
+                            <input type="text" id="studentBatch" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cca-gold focus:border-cca-gold outline-none" placeholder="e.g. Morning A">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Roll Number</label>
+                            <input type="text" id="studentRoll" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cca-gold focus:border-cca-gold outline-none" placeholder="e.g. 1024">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Teacher Selection -->
+                <div class="p-6 md:p-8 border-b border-slate-100 bg-slate-50">
+                    <h3 class="text-xl font-semibold mb-4 text-cca-navy flex items-center gap-2">
+                        <i class="fas fa-chalkboard-teacher text-cca-gold"></i> Select Teacher
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Subject <span class="text-red-500">*</span></label>
+                            <select id="subjectSelect" required class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cca-gold focus:border-cca-gold outline-none bg-white">
+                                <option value="">-- Select Subject --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Teacher <span class="text-red-500">*</span></label>
+                            <select id="teacherSelect" required disabled class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cca-gold focus:border-cca-gold outline-none bg-slate-100 cursor-not-allowed">
+                                <option value="">-- First Select Subject --</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Evaluation -->
+                <div class="p-6 md:p-8 border-b border-slate-100">
+                    <div class="flex justify-between items-end mb-6">
+                        <h3 class="text-xl font-semibold text-cca-navy flex items-center gap-2">
+                            <i class="fas fa-star text-cca-gold"></i> Rate the Teacher
+                        </h3>
+                        <div class="text-sm font-medium text-slate-500">1 = Very Poor, 5 = Excellent</div>
+                    </div>
+                    <div id="questions-container" class="space-y-6">
+                        <!-- Questions injected via JS -->
+                    </div>
+                </div>
+
+                <!-- Section 4: Complaints -->
+                <div class="p-6 md:p-8 border-b border-slate-100 bg-slate-50">
+                    <h3 class="text-xl font-semibold mb-2 text-cca-navy flex items-center gap-2">
+                        <i class="fas fa-exclamation-triangle text-red-500"></i> Complaints / Issues
+                    </h3>
+                    <p class="text-sm text-slate-500 mb-4">Select any issues you have faced with this teacher (Optional).</p>
+                    <div id="complaints-container" class="flex flex-wrap gap-3">
+                        <!-- Checkboxes injected via JS -->
+                    </div>
+                </div>
+
+                <!-- Section 5: Written Feedback & Recommendation -->
+                <div class="p-6 md:p-8">
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-slate-700 mb-2 font-semibold">Additional Feedback & Suggestions</label>
+                        <textarea id="feedbackText" rows="4" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cca-gold focus:border-cca-gold outline-none" placeholder="Write any specific comments, suggestions or complaints..."></textarea>
+                    </div>
+                    
+                    <div class="mb-8">
+                        <label class="block text-sm font-medium text-slate-700 mb-3 font-semibold">Would you recommend this teacher to future MDCAT students? <span class="text-red-500">*</span></label>
+                        <div class="flex gap-4">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="recommend" value="Yes" required class="w-4 h-4 text-cca-gold focus:ring-cca-gold">
+                                <span>Yes</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="recommend" value="Maybe" required class="w-4 h-4 text-cca-gold focus:ring-cca-gold">
+                                <span>Maybe</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="recommend" value="No" required class="w-4 h-4 text-cca-gold focus:ring-cca-gold">
+                                <span>No</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="submitBtn" class="w-full bg-cca-navy hover:bg-slate-800 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-lg">
+                        <span>Submit Evaluation</span>
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- VIEW: ADMIN LOGIN                          -->
+        <!-- ========================================== -->
+        <div id="admin-login-view" class="hidden w-full max-w-md animate-fade-in mt-10">
+            <div class="glass-card p-8 rounded-2xl shadow-xl text-center">
+                <div class="w-16 h-16 bg-cca-navy rounded-full flex items-center justify-center mx-auto mb-4 text-white text-2xl">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-cca-navy mb-2">Admin Access</h2>
+                <p class="text-slate-500 mb-6 text-sm">Enter password to view evaluation analytics.</p>
+                
+                <form id="login-form">
+                    <input type="password" id="adminPassword" class="w-full p-3 border border-slate-300 rounded-lg mb-4 focus:ring-2 focus:ring-cca-gold outline-none text-center" placeholder="Password (default: admin123)">
+                    <button type="submit" class="w-full bg-cca-gold hover:bg-yellow-500 text-cca-navy font-bold py-3 rounded-lg shadow transition-all">
+                        Login to Dashboard
+                    </button>
+                    <p class="mt-4 text-sm"><a href="#" onclick="toggleView()" class="text-blue-600 hover:underline">Back to Evaluation Form</a></p>
+                </form>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- VIEW: ADMIN DASHBOARD                      -->
+        <!-- ========================================== -->
+        <div id="admin-dashboard-view" class="hidden w-full max-w-7xl animate-fade-in">
+            <div class="flex justify-between items-end mb-6 flex-wrap gap-4">
+                <div>
+                    <h2 class="text-3xl font-bold text-cca-navy">Analytics Dashboard</h2>
+                    <p class="text-slate-600">Overview of teacher performance and student feedback.</p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="exportToCSV()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow transition">
+                        <i class="fas fa-file-csv"></i> Export CSV
+                    </button>
+                    <button onclick="logoutAdmin()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </div>
+
+            <!-- Top Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 border-l-4 border-l-blue-500">
+                    <div class="text-slate-500 text-sm font-medium">Total Responses</div>
+                    <div class="text-3xl font-bold text-cca-navy mt-1" id="stat-total-responses">0</div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 border-l-4 border-l-green-500">
+                    <div class="text-slate-500 text-sm font-medium">Avg Academy Rating</div>
+                    <div class="text-3xl font-bold text-cca-navy mt-1" id="stat-avg-rating">0.0</div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 border-l-4 border-l-yellow-500">
+                    <div class="text-slate-500 text-sm font-medium">Teachers Evaluated</div>
+                    <div class="text-3xl font-bold text-cca-navy mt-1" id="stat-teachers-count">0</div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 border-l-4 border-l-red-500">
+                    <div class="text-slate-500 text-sm font-medium">Total Complaints</div>
+                    <div class="text-3xl font-bold text-cca-navy mt-1" id="stat-total-complaints">0</div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <h3 class="text-lg font-semibold text-cca-navy mb-4">Teacher Performance Ratings</h3>
+                    <div class="relative h-64 w-full">
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <h3 class="text-lg font-semibold text-cca-navy mb-4">Complaint Distribution</h3>
+                    <div class="relative h-64 w-full flex justify-center">
+                        <canvas id="pieChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Table -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden mb-8">
+                <div class="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                    <h3 class="text-lg font-semibold text-cca-navy">Detailed Teacher Analytics</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-600 text-sm">
+                                <th class="p-4 font-semibold border-b">Teacher</th>
+                                <th class="p-4 font-semibold border-b">Subject</th>
+                                <th class="p-4 font-semibold border-b text-center">Responses</th>
+                                <th class="p-4 font-semibold border-b text-center">Avg Rating (1-5)</th>
+                                <th class="p-4 font-semibold border-b text-center">Recommend %</th>
+                                <th class="p-4 font-semibold border-b text-center">Complaints</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-table-body" class="text-sm">
+                            <!-- Rows injected via JS -->
+                        </tbody>
+                    </table>
+                    <div id="table-loading" class="p-8 text-center text-slate-500">
+                        <div class="loader mb-2"></div>
+                        <p>Syncing live data from Firebase...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Feedback List -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                 <div class="p-6 border-b border-slate-100 bg-slate-50">
+                    <h3 class="text-lg font-semibold text-cca-navy">Recent Written Feedback & Complaints</h3>
+                </div>
+                <div id="feedback-list" class="p-6 max-h-96 overflow-y-auto space-y-4">
+                    <!-- Feedback items injected via JS -->
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-cca-navy text-slate-400 py-6 text-center text-sm border-t border-slate-800 mt-auto">
+        <p>&copy; 2026 Capital Coaching Academy. All Rights Reserved.</p>
+        <p class="mt-1 text-xs">MDCAT Evaluation System - Mardan Paramedical Institute Campus</p>
+    </footer>
+
+    <!-- Firebase SDK (Version 11.6.1) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ==========================================
+        // CONFIGURATION & CONSTANTS
+        // ==========================================
+        
+        const academyData = {
+            "Biology": ["Sir Arif", "Sir Jawad"],
+            "Chemistry": ["Sir Zia", "Sir Khairullah", "Sir Shakeel"],
+            "Physics": ["Sir Adil", "Sir Sohail"],
+            "Maths / Logical Reasoning": ["Sir Sheraz"],
+            "English": ["Sir Kamran"]
+        };
+
+        const evaluationQuestions = [
+            "Teacher comes to class regularly.",
+            "Teacher starts class on time.",
+            "Teacher completes lectures properly.",
+            "Teacher explains concepts clearly.",
+            "Teacher answers students' questions.",
+            "Teacher maintains class discipline.",
+            "Teacher provides notes/material on time.",
+            "Teacher follows MDCAT pattern.",
+            "Teacher conducts tests/quizzes regularly.",
+            "Teacher helps weak students.",
+            "Teacher is respectful toward students.",
+            "Overall teaching quality."
+        ];
+
+        const complaintOptions = [
+            "Frequently absent", "Often late", "Incomplete lectures", 
+            "Poor explanation", "Does not share notes", "Does not conduct tests", 
+            "Unprofessional behavior", "Course behind schedule", "Other issue"
+        ];
+
+        // ==========================================
+        // STATE & UI HELPERS
+        // ==========================================
+        
+        let currentView = 'student'; // 'student', 'login', 'dashboard'
+        let chartInstances = {};
+        let allEvaluations = []; // Store for export
+
+        window.showToast = function(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} mr-2"></i> ${message}`;
+            container.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        window.toggleView = function() {
+            if (currentView === 'student') {
+                document.getElementById('student-view').classList.add('hidden');
+                document.getElementById('admin-login-view').classList.remove('hidden');
+                document.getElementById('nav-btn').innerHTML = '<i class="fas fa-arrow-left"></i> Back to Form';
+                currentView = 'login';
+            } else {
+                document.getElementById('student-view').classList.remove('hidden');
+                document.getElementById('admin-login-view').classList.add('hidden');
+                document.getElementById('admin-dashboard-view').classList.add('hidden');
+                document.getElementById('nav-btn').innerHTML = '<i class="fas fa-lock"></i> Admin Login';
+                currentView = 'student';
+            }
+        }
+
+        window.logoutAdmin = function() {
+            sessionStorage.removeItem('cca_admin_auth');
+            toggleView();
+        }
+
+        // ==========================================
+        // INITIALIZE UI ELEMENTS
+        // ==========================================
+        
+        function initFormUI() {
+            // Subject Dropdown
+            const subjSelect = document.getElementById('subjectSelect');
+            const teacherSelect = document.getElementById('teacherSelect');
+            
+            Object.keys(academyData).forEach(subject => {
+                let opt = document.createElement('option');
+                opt.value = subject;
+                opt.textContent = subject;
+                subjSelect.appendChild(opt);
+            });
+
+            subjSelect.addEventListener('change', (e) => {
+                teacherSelect.innerHTML = '<option value="">-- Select Teacher --</option>';
+                const subj = e.target.value;
+                if (subj) {
+                    academyData[subj].forEach(teacher => {
+                        let opt = document.createElement('option');
+                        opt.value = teacher;
+                        opt.textContent = teacher;
+                        teacherSelect.appendChild(opt);
+                    });
+                    teacherSelect.disabled = false;
+                    teacherSelect.classList.remove('bg-slate-100', 'cursor-not-allowed');
+                    teacherSelect.classList.add('bg-white');
+                } else {
+                    teacherSelect.disabled = true;
+                    teacherSelect.classList.add('bg-slate-100', 'cursor-not-allowed');
+                    teacherSelect.classList.remove('bg-white');
+                }
+            });
+
+            // Questions
+            const qContainer = document.getElementById('questions-container');
+            evaluationQuestions.forEach((q, index) => {
+                const row = document.createElement('div');
+                row.className = "flex flex-col md:flex-row md:items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 gap-4 hover:bg-slate-100 transition-colors";
+                
+                const label = document.createElement('div');
+                label.className = "font-medium text-slate-700 flex-1";
+                label.textContent = `${index + 1}. ${q}`;
+                
+                const radios = document.createElement('div');
+                radios.className = "flex items-center gap-2 sm:gap-3 mt-2 md:mt-0";
+                
+                for(let i=1; i<=5; i++) {
+                    const id = `q${index}_${i}`;
+                    let subText = "";
+                    if(i === 1) subText = "Poor";
+                    if(i === 5) subText = "Excellent";
+
+                    radios.innerHTML += `
+                        <div class="flex flex-col items-center">
+                            <input type="radio" name="q_${index}" id="${id}" value="${i}" class="peer hidden" required>
+                            <label for="${id}" class="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-white text-slate-700 font-bold text-lg border-2 border-slate-200 cursor-pointer transition-all hover:bg-yellow-50 peer-checked:bg-cca-gold peer-checked:border-yellow-600 peer-checked:text-cca-navy peer-checked:scale-110 shadow-sm">${i}</label>
+                            <span class="text-[10px] text-slate-400 font-medium mt-1 h-3">${subText}</span>
+                        </div>
+                    `;
+                }
+                
+                row.appendChild(label);
+                row.appendChild(radios);
+                qContainer.appendChild(row);
+            });
+
+            // Complaints
+            const compContainer = document.getElementById('complaints-container');
+            complaintOptions.forEach((c, index) => {
+                const id = `comp_${index}`;
+                compContainer.innerHTML += `
+                    <div>
+                        <input type="checkbox" id="${id}" value="${c}" class="complaint-checkbox">
+                        <label for="${id}" class="complaint-label">
+                            <i class="fas fa-times-circle text-xs opacity-50"></i> ${c}
+                        </label>
+                    </div>
+                `;
+            });
+        }
+
+        initFormUI();
+
+        // ==========================================
+        // FIREBASE SETUP & AUTHENTICATION
+        // ==========================================
+        
+        let app, auth, db, appId;
+
+        try {
+            // Setup Firebase using environment variables
+            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+                // Mock config for local testing if needed
+                apiKey: "mock-key",
+                projectId: "mock-project"
+            };
+            
+            appId = typeof __app_id !== 'undefined' ? __app_id : 'cca-evaluation-app';
+            
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+
+            // Rule 3: Auth Before Queries
+            const initAuth = async () => {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (err) {
+                    console.error("Auth Error:", err);
+                    showToast("Authentication warning. Offline mode possible.", "error");
+                }
+            };
+            initAuth();
+
+        } catch (error) {
+            console.error("Firebase Initialization Error:", error);
+            showToast("Database connection failed.", "error");
+        }
+
+        // ==========================================
+        // SUBMIT EVALUATION
+        // ==========================================
+        
+        document.getElementById('evaluation-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!auth.currentUser) {
+                showToast("Still connecting to server, please try again in a moment.", "error");
+                return;
+            }
+
+            const btn = document.getElementById('submitBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<div class="loader"></div> Submitting...';
+            btn.disabled = true;
+
+            try {
+                const teacher = document.getElementById('teacherSelect').value;
+                const subject = document.getElementById('subjectSelect').value;
+                
+                // Anti-spam check via LocalStorage
+                const cacheKey = `cca_eval_${teacher.replace(/\s+/g, '')}`;
+                if (localStorage.getItem(cacheKey)) {
+                    showToast(`You have already evaluated ${teacher} from this device.`, "error");
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    return;
+                }
+
+                // Gather Ratings
+                let ratings = {};
+                evaluationQuestions.forEach((_, index) => {
+                    const selected = document.querySelector(`input[name="q_${index}"]:checked`);
+                    if(selected) ratings[`q${index}`] = parseInt(selected.value);
+                });
+
+                // Gather Complaints
+                let complaints = [];
+                document.querySelectorAll('.complaint-checkbox:checked').forEach(cb => {
+                    complaints.push(cb.value);
+                });
+
+                const data = {
+                    studentName: document.getElementById('studentName').value || "Anonymous",
+                    batch: document.getElementById('studentBatch').value || "N/A",
+                    rollNo: document.getElementById('studentRoll').value || "N/A",
+                    subject: subject,
+                    teacher: teacher,
+                    ratings: ratings,
+                    complaints: complaints,
+                    feedback: document.getElementById('feedbackText').value,
+                    recommend: document.querySelector('input[name="recommend"]:checked').value,
+                    timestamp: serverTimestamp(),
+                    userId: auth.currentUser.uid // Use uid as identifier
+                };
+
+                // Rule 1: Strict Paths for public data
+                const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'evaluations');
+                await addDoc(colRef, data);
+
+                // Mark as submitted locally
+                localStorage.setItem(cacheKey, 'true');
+
+                showToast("Feedback submitted successfully! Thank you.", "success");
+                e.target.reset();
+                document.getElementById('teacherSelect').disabled = true;
+                
+                // Reset custom check visuals (handled natively by form.reset() mostly, but good practice)
+                window.scrollTo(0, 0);
+
+            } catch (error) {
+                console.error("Submission Error:", error);
+                showToast("Error submitting evaluation. Check connection.", "error");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+
+        // ==========================================
+        // ADMIN DASHBOARD LOGIC
+        // ==========================================
+        
+        let dashboardUnsubscribe = null;
+
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const pass = document.getElementById('adminPassword').value;
+            // Simple front-end protection as requested
+            if (pass === 'admin123') {
+                sessionStorage.setItem('cca_admin_auth', 'true');
+                showDashboard();
+            } else {
+                showToast("Incorrect password", "error");
+            }
+        });
+
+        function showDashboard() {
+            document.getElementById('admin-login-view').classList.add('hidden');
+            document.getElementById('admin-dashboard-view').classList.remove('hidden');
+            document.getElementById('nav-btn').innerHTML = '<i class="fas fa-arrow-left"></i> Exit Dashboard';
+            currentView = 'dashboard';
+            document.getElementById('adminPassword').value = '';
+            
+            loadDashboardData();
+        }
+
+        function loadDashboardData() {
+            if (!auth.currentUser) return;
+            
+            document.getElementById('table-loading').style.display = 'block';
+            document.getElementById('admin-table-body').innerHTML = '';
+
+            const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'evaluations');
+            
+            // Rule 2: No Complex Queries. Fetch all and process in JS.
+            dashboardUnsubscribe = onSnapshot(colRef, (snapshot) => {
+                const data = [];
+                snapshot.forEach(doc => {
+                    data.push({ id: doc.id, ...doc.data() });
+                });
+                
+                allEvaluations = data; // Save for CSV export
+                processAdminData(data);
+                document.getElementById('table-loading').style.display = 'none';
+
+            }, (error) => {
+                console.error("Fetch Error:", error);
+                showToast("Error syncing analytics data.", "error");
+            });
+        }
+
+        function processAdminData(data) {
+            let totalResponses = data.length;
+            let totalComplaints = 0;
+            let sumAllRatings = 0;
+            let totalRatingQuestions = 0;
+
+            let teacherStats = {};
+            let complaintsMap = {};
+
+            // Initialize teacher stats
+            Object.keys(academyData).forEach(subj => {
+                academyData[subj].forEach(t => {
+                    teacherStats[t] = {
+                        subject: subj,
+                        count: 0,
+                        sumRatings: 0,
+                        questionsAnswered: 0,
+                        complaintsCount: 0,
+                        recommendYes: 0
+                    };
+                });
+            });
+
+            // Process Each Evaluation
+            data.forEach(evalData => {
+                const tName = evalData.teacher;
+                
+                // Add unknown teachers just in case
+                if (!teacherStats[tName]) {
+                    teacherStats[tName] = { subject: evalData.subject || "Unknown", count: 0, sumRatings: 0, questionsAnswered: 0, complaintsCount: 0, recommendYes: 0 };
+                }
+
+                const stats = teacherStats[tName];
+                stats.count++;
+
+                // Process Ratings
+                if (evalData.ratings) {
+                    Object.values(evalData.ratings).forEach(r => {
+                        stats.sumRatings += r;
+                        stats.questionsAnswered++;
+                        sumAllRatings += r;
+                        totalRatingQuestions++;
+                    });
+                }
+
+                // Process Recommendations
+                if (evalData.recommend === 'Yes') stats.recommendYes++;
+
+                // Process Complaints
+                if (evalData.complaints && evalData.complaints.length > 0) {
+                    stats.complaintsCount += evalData.complaints.length;
+                    totalComplaints += evalData.complaints.length;
+                    
+                    evalData.complaints.forEach(c => {
+                        complaintsMap[c] = (complaintsMap[c] || 0) + 1;
+                    });
+                }
+            });
+
+            // Update Top Stats
+            document.getElementById('stat-total-responses').textContent = totalResponses;
+            document.getElementById('stat-total-complaints').textContent = totalComplaints;
+            
+            const academyAvg = totalRatingQuestions > 0 ? (sumAllRatings / totalRatingQuestions).toFixed(2) : '0.0';
+            document.getElementById('stat-avg-rating').textContent = academyAvg;
+            
+            const activeTeachers = Object.values(teacherStats).filter(t => t.count > 0).length;
+            document.getElementById('stat-teachers-count').textContent = activeTeachers;
+
+            renderTable(teacherStats);
+            renderCharts(teacherStats, complaintsMap);
+            renderFeedbackList(data);
+        }
+
+        function renderTable(teacherStats) {
+            const tbody = document.getElementById('admin-table-body');
+            tbody.innerHTML = '';
+
+            // Sort by average rating descending
+            const sortedTeachers = Object.keys(teacherStats).sort((a, b) => {
+                const avgA = teacherStats[a].questionsAnswered > 0 ? teacherStats[a].sumRatings / teacherStats[a].questionsAnswered : 0;
+                const avgB = teacherStats[b].questionsAnswered > 0 ? teacherStats[b].sumRatings / teacherStats[b].questionsAnswered : 0;
+                return avgB - avgA;
+            });
+
+            sortedTeachers.forEach(tName => {
+                const s = teacherStats[tName];
+                if (s.count === 0) return; // Skip teachers with no responses
+
+                const avgRating = s.questionsAnswered > 0 ? (s.sumRatings / s.questionsAnswered).toFixed(2) : 'N/A';
+                const recPercent = s.count > 0 ? Math.round((s.recommendYes / s.count) * 100) : 0;
+
+                // Color coding for ratings
+                let ratingColor = 'text-green-600';
+                if (avgRating < 3.5) ratingColor = 'text-yellow-600';
+                if (avgRating < 2.5) ratingColor = 'text-red-600';
+
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-slate-50 hover:bg-slate-50 transition";
+                tr.innerHTML = `
+                    <td class="p-4 font-medium text-slate-800">${tName}</td>
+                    <td class="p-4 text-slate-500">${s.subject}</td>
+                    <td class="p-4 text-center">${s.count}</td>
+                    <td class="p-4 text-center font-bold ${ratingColor}">${avgRating}</td>
+                    <td class="p-4 text-center">
+                        <div class="w-full bg-slate-200 rounded-full h-2 mt-1">
+                            <div class="bg-blue-600 h-2 rounded-full" style="width: ${recPercent}%"></div>
+                        </div>
+                        <span class="text-xs text-slate-500">${recPercent}%</span>
+                    </td>
+                    <td class="p-4 text-center font-medium ${s.complaintsCount > 0 ? 'text-red-500' : 'text-slate-400'}">${s.complaintsCount}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderCharts(teacherStats, complaintsMap) {
+            // Chart configuration
+            Chart.defaults.font.family = 'Inter, sans-serif';
+            Chart.defaults.color = '#64748b';
+
+            const activeTeachers = Object.keys(teacherStats).filter(t => teacherStats[t].count > 0);
+            
+            // 1. Bar Chart: Average Rating per Teacher
+            const labelsBar = activeTeachers;
+            const dataBar = activeTeachers.map(t => {
+                const s = teacherStats[t];
+                return s.questionsAnswered > 0 ? (s.sumRatings / s.questionsAnswered).toFixed(2) : 0;
+            });
+
+            if (chartInstances.bar) chartInstances.bar.destroy();
+            const ctxBar = document.getElementById('barChart').getContext('2d');
+            chartInstances.bar = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: labelsBar,
+                    datasets: [{
+                        label: 'Avg Rating (Out of 5)',
+                        data: dataBar,
+                        backgroundColor: '#eab308',
+                        borderRadius: 6,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, max: 5 } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // 2. Pie Chart: Complaints Distribution
+            const compLabels = Object.keys(complaintsMap);
+            const compData = Object.values(complaintsMap);
+
+            if (chartInstances.pie) chartInstances.pie.destroy();
+            const ctxPie = document.getElementById('pieChart').getContext('2d');
+            
+            if (compLabels.length === 0) {
+                // Empty state
+                chartInstances.pie = new Chart(ctxPie, {
+                    type: 'doughnut',
+                    data: { labels: ['No Complaints'], datasets: [{ data: [1], backgroundColor: ['#e2e8f0'] }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { enabled: false } } }
+                });
+            } else {
+                chartInstances.pie = new Chart(ctxPie, {
+                    type: 'doughnut',
+                    data: {
+                        labels: compLabels,
+                        datasets: [{
+                            data: compData,
+                            backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#0ea5e9', '#6366f1', '#a855f7', '#ec4899']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'right', labels: { boxWidth: 12 } } }
+                    }
+                });
+            }
+        }
+
+        function renderFeedbackList(data) {
+            const container = document.getElementById('feedback-list');
+            container.innerHTML = '';
+            
+            // Filter entries that have feedback or complaints
+            const relevantData = data.filter(d => (d.feedback && d.feedback.trim() !== "") || (d.complaints && d.complaints.length > 0));
+            
+            // Sort by timestamp (newest first)
+            relevantData.sort((a, b) => {
+                const timeA = a.timestamp ? a.timestamp.toMillis() : 0;
+                const timeB = b.timestamp ? b.timestamp.toMillis() : 0;
+                return timeB - timeA;
+            });
+
+            if (relevantData.length === 0) {
+                container.innerHTML = '<p class="text-slate-500 text-sm">No written feedback or complaints recorded yet.</p>';
+                return;
+            }
+
+            relevantData.forEach(item => {
+                const dateStr = item.timestamp ? new Date(item.timestamp.toMillis()).toLocaleDateString() : 'Recent';
+                const hasComplaints = item.complaints && item.complaints.length > 0;
+                const compTags = hasComplaints 
+                    ? item.complaints.map(c => `<span class="inline-block bg-red-100 text-red-700 text-xs px-2 py-1 rounded mb-1 mr-1 border border-red-200">${c}</span>`).join('') 
+                    : '';
+                
+                const recBadge = item.recommend === 'Yes' 
+                    ? `<span class="text-green-600 text-xs font-bold"><i class="fas fa-thumbs-up"></i> Recommends</span>` 
+                    : (item.recommend === 'No' ? `<span class="text-red-600 text-xs font-bold"><i class="fas fa-thumbs-down"></i> Does Not Recommend</span>` : `<span class="text-yellow-600 text-xs font-bold"><i class="fas fa-minus"></i> Undecided</span>`);
+
+                const html = `
+                    <div class="p-4 border border-slate-100 rounded-lg bg-white shadow-sm">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <h4 class="font-bold text-cca-navy">${item.teacher} <span class="text-slate-400 font-normal text-sm">(${item.subject})</span></h4>
+                                <div class="text-xs text-slate-500 mt-1">Student: ${item.studentName} | Batch: ${item.batch} | Date: ${dateStr}</div>
+                            </div>
+                            <div>${recBadge}</div>
+                        </div>
+                        ${hasComplaints ? `<div class="mb-2">${compTags}</div>` : ''}
+                        ${item.feedback ? `<p class="text-sm text-slate-700 bg-slate-50 p-3 rounded border-l-4 border-l-cca-gold italic">"${item.feedback}"</p>` : ''}
+                    </div>
+                `;
+                container.innerHTML += html;
+            });
+        }
+
+        // ==========================================
+        // EXPORT TO CSV
+        // ==========================================
+        window.exportToCSV = function() {
+            if (allEvaluations.length === 0) {
+                showToast("No data to export.", "error");
+                return;
+            }
+
+            // Define CSV Headers
+            const headers = [
+                "Date", "Student Name", "Batch", "Roll No", "Subject", "Teacher", 
+                "Overall Avg Rating", "Recommend", "Complaints", "Feedback"
+            ];
+            
+            // Append question headers
+            evaluationQuestions.forEach((q, i) => headers.push(`Q${i+1}: ${q.replace(/,/g, '')}`));
+
+            let csvRows = [headers.join(',')];
+
+            allEvaluations.forEach(row => {
+                const date = row.timestamp ? new Date(row.timestamp.toMillis()).toLocaleString().replace(/,/g, '') : 'N/A';
+                
+                // Calc overall avg for this response
+                let qSum = 0, qCount = 0;
+                for(let i=0; i<12; i++) {
+                    if(row.ratings && row.ratings[`q${i}`]) {
+                        qSum += row.ratings[`q${i}`];
+                        qCount++;
+                    }
+                }
+                const avgRating = qCount > 0 ? (qSum/qCount).toFixed(2) : 'N/A';
+                const complaintsStr = row.complaints ? row.complaints.join(' | ') : 'None';
+                const feedbackSafe = row.feedback ? `"${row.feedback.replace(/"/g, '""').replace(/\n/g, ' ')}"` : 'None';
+
+                let values = [
+                    date,
+                    row.studentName || 'Anonymous',
+                    row.batch || 'N/A',
+                    row.rollNo || 'N/A',
+                    row.subject,
+                    row.teacher,
+                    avgRating,
+                    row.recommend,
+                    complaintsStr,
+                    feedbackSafe
+                ];
+
+                // Append individual ratings
+                for(let i=0; i<12; i++) {
+                    values.push(row.ratings && row.ratings[`q${i}`] ? row.ratings[`q${i}`] : 'N/A');
+                }
+
+                csvRows.push(values.join(','));
+            });
+
+            const csvString = csvRows.join('\n');
+            const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `CCA_Teacher_Evaluations_${new Date().toLocaleDateString().replace(/\//g, '-')}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Initialize connection state monitoring
+        onAuthStateChanged(auth, (user) => {
+            if (!user && currentView === 'dashboard') {
+               showToast("Session expired or offline. Please refresh.", "error");
+            }
+        });
+
+    </script>
+</body>
+</html>
