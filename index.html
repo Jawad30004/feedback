@@ -472,28 +472,38 @@
 
             // Questions
             const qContainer = document.getElementById('questions-container');
+            const satisfactionLabels = [
+                "Very Unsatisfactory",
+                "Unsatisfactory",
+                "Neutral",
+                "Satisfactory",
+                "Highly Satisfactory"
+            ];
+
             evaluationQuestions.forEach((q, index) => {
                 const row = document.createElement('div');
-                row.className = "flex flex-col md:flex-row md:items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 gap-4 hover:bg-slate-100 transition-colors";
+                row.className = "flex flex-col lg:flex-row lg:items-center justify-between p-4 sm:p-5 bg-slate-50 rounded-2xl border border-slate-150 gap-4 hover:bg-slate-100 transition-colors";
                 
                 const label = document.createElement('div');
-                label.className = "font-medium text-slate-700 flex-1";
+                label.className = "font-semibold text-slate-700 flex-1 text-base";
                 label.textContent = `${index + 1}. ${q}`;
                 
                 const radios = document.createElement('div');
-                radios.className = "flex items-center gap-2 sm:gap-3 mt-2 md:mt-0";
+                radios.className = "grid grid-cols-5 gap-1 sm:gap-3 mt-3 lg:mt-0 justify-items-center w-full lg:w-auto";
                 
                 for(let i=1; i<=5; i++) {
                     const id = `q${index}_${i}`;
-                    let subText = "";
-                    if(i === 1) subText = "Poor";
-                    if(i === 5) subText = "Excellent";
+                    const subText = satisfactionLabels[i - 1];
 
                     radios.innerHTML += `
-                        <div class="flex flex-col items-center">
+                        <div class="flex flex-col items-center w-14 sm:w-20">
                             <input type="radio" name="q_${index}" id="${id}" value="${i}" class="peer hidden" required>
-                            <label for="${id}" class="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-white text-slate-700 font-bold text-lg border-2 border-slate-200 cursor-pointer transition-all hover:bg-yellow-50 peer-checked:bg-cca-gold peer-checked:border-yellow-600 peer-checked:text-cca-navy peer-checked:scale-110 shadow-sm">${i}</label>
-                            <span class="text-[10px] text-slate-400 font-medium mt-1 h-3">${subText}</span>
+                            <label for="${id}" class="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-white text-slate-700 font-bold text-base sm:text-lg border-2 border-slate-200 cursor-pointer transition-all hover:bg-yellow-50 peer-checked:bg-cca-gold peer-checked:border-yellow-600 peer-checked:text-cca-navy peer-checked:scale-110 shadow-sm">
+                                ${i}
+                            </label>
+                            <span class="text-[8px] sm:text-[10px] text-slate-500 font-semibold mt-2 text-center leading-snug w-full select-none">
+                                ${subText}
+                            </span>
                         </div>
                     `;
                 }
